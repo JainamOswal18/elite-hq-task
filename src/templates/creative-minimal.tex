@@ -1,0 +1,173 @@
+% Creative Minimal Resume Template
+\documentclass[10pt,a4paper]{article}
+
+% Packages
+\usepackage[top=0.7in, bottom=0.7in, left=0.55in, right=0.85in]{geometry}
+\usepackage{graphicx}
+\usepackage{url}
+\usepackage{palatino}
+\usepackage{tabularx}
+\usepackage{enumitem}
+\usepackage{fontspec}
+\usepackage{color}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usepackage[hidelinks]{hyperref}
+
+% Color scheme - Teal and dark gray
+\definecolor{primary}{HTML}{14B8A6}
+\definecolor{secondary}{HTML}{64748B}
+\definecolor{accent}{HTML}{0EA5E9}
+\definecolor{text}{HTML}{1E293B}
+
+% Font settings
+\setmainfont[
+  Path = fonts/,
+  Extension = .ttf,
+  UprightFont = *-Regular,
+  BoldFont = *-Bold,
+  ItalicFont = *-Italic
+]{Inter}
+
+% Remove page numbering
+\pagenumbering{gobble}
+
+% Custom section formatting
+\newcommand{\cvsection}[1]{%
+  \vspace{8pt}%
+  {\color{primary}\Large\bfseries #1}%
+  \vspace{2pt}%
+  {\color{primary}\hrule height 1pt}%
+  \vspace{6pt}%
+}
+
+% Custom subsection for job entries
+\newcommand{\cventry}[6]{%
+  \textbf{\color{text}#1} \hfill {\color{secondary}\small #2}\\%
+  {\color{accent}\textit{#3}} \hfill {\color{secondary}\small #4}\\%
+  \vspace{2pt}%
+  #6%
+  \vspace{8pt}%
+}
+
+% Custom command for skills
+\newcommand{\skillitem}[2]{%
+  \textbf{\color{primary}#1:} {\color{text}#2}\\%
+}
+
+% Custom bullet points
+\renewcommand{\labelitemi}{{\color{primary}$\bullet$}}
+
+\begin{document}
+
+% Header
+\begin{center}
+  \tikz[remember picture,overlay] \node[anchor=north east,inner sep=20pt] at (current page.north east) {\includegraphics[width=3cm]{avatar.png}};
+  
+  {\Huge\bfseries\color{text}{{personalInfo.fullName}}}\\[5pt]
+  {{#if personalInfo.title}}
+  {\Large\color{secondary}{{personalInfo.title}}}\\[8pt]
+  {{/if}}
+  
+  \begin{tabular}{c c c}
+    {\color{secondary}\faPhone} {{personalInfo.phone}} &
+    {\color{secondary}\faEnvelope} \href{mailto:{{personalInfo.email}}}{{{personalInfo.email}}} &
+    {\color{secondary}\faMapMarker} {{personalInfo.location}}
+  \end{tabular}\\[3pt]
+  
+  {{#if personalInfo.website}}
+  {\color{accent}\faGlobe} \href{{{personalInfo.website}}}{{{personalInfo.website}}}
+  {{/if}}
+  {{#if personalInfo.linkedin}}
+  {\color{accent}\faLinkedin} \href{https://linkedin.com/in/{{personalInfo.linkedin}}}{{{personalInfo.linkedin}}}
+  {{/if}}
+  {{#if personalInfo.github}}
+  {\color{accent}\faGithub} \href{https://github.com/{{personalInfo.github}}}{{{personalInfo.github}}}
+  {{/if}}
+\end{center}
+
+\vspace{15pt}
+
+% Summary
+{{#if summary}}
+\cvsection{Profile}
+{\color{text}{{summary}}}
+\vspace{10pt}
+{{/if}}
+
+% Experience
+{{#if experience}}
+\cvsection{Experience}
+{{#each experience}}
+\cventry{{{position}}}{{{startDate}}{{#unless current}} -- {{endDate}}{{/unless}}{{#if current}} -- Present{{/if}}}{{{company}}}{{{location}}}{}
+{
+\begin{itemize}[leftmargin=15pt, itemsep=2pt]
+{{#each description}}
+\item {\color{text}{{this}}}
+{{/each}}
+\end{itemize}
+}
+{{/each}}
+{{/if}}
+
+% Projects
+{{#if projects}}
+\cvsection{Featured Projects}
+{{#each projects}}
+\textbf{\color{text}{{name}}} \hfill {\color{secondary}\small {{startDate}}{{#if endDate}} -- {{endDate}}{{/if}}}\\
+{\color{text}{{description}}}\\
+{\color{primary}\textbf{Tech Stack:}} {\color{secondary}{{technologies}}}
+{{#if url}}
+\hfill {\color{accent}\faExternalLink} \href{{{url}}}{Live Demo}
+{{/if}}
+{{#if github}}
+\hfill {\color{accent}\faGithub} \href{{{github}}}{Source Code}
+{{/if}}
+\vspace{8pt}
+{{/each}}
+{{/if}}
+
+\begin{multicols}{2}
+
+% Education
+{{#if education}}
+\cvsection{Education}
+{{#each education}}
+\textbf{\color{text}{{degree}}}\\
+{\color{accent}{{field}}}\\
+{\color{secondary}{{institution}}, {{location}}}\\
+{\color{secondary}{{startDate}} -- {{endDate}}}
+{{#if gpa}}
+\\{\color{primary}GPA:} {\color{text}{{gpa}}}
+{{/if}}
+\vspace{8pt}
+{{/each}}
+{{/if}}
+
+% Skills
+{{#if skills}}
+\cvsection{Skills}
+{{#each skills}}
+\skillitem{{{category}}}{{{items}}}
+{{/each}}
+{{/if}}
+
+\columnbreak
+
+% Certifications
+{{#if certifications}}
+\cvsection{Certifications}
+{{#each certifications}}
+\textbf{\color{text}{{name}}}\\
+{\color{secondary}{{issuer}}}\\
+{\color{secondary}{{date}}}
+{{#if url}}
+\\{\color{accent}\faExternalLink} \href{{{url}}}{Verify}
+{{/if}}
+\vspace{6pt}
+{{/each}}
+{{/if}}
+
+\end{multicols}
+
+\end{document}

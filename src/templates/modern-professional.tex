@@ -1,0 +1,109 @@
+% Modern Professional Resume Template
+\documentclass[11pt,a4paper,sans]{moderncv}
+
+% Modern CV theme and style
+\moderncvstyle{banking}
+\moderncvcolor{blue}
+
+% Character encoding
+\usepackage[utf8]{inputenc}
+
+% Page margins
+\usepackage[scale=0.85]{geometry}
+
+% Personal information placeholders
+\name{{{personalInfo.fullName}}}{}
+\title{{{personalInfo.title}}}
+\address{{{personalInfo.location}}}
+\phone[mobile]{{{personalInfo.phone}}}
+\email{{{personalInfo.email}}}
+{{#if personalInfo.website}}
+\homepage{{{personalInfo.website}}}
+{{/if}}
+{{#if personalInfo.linkedin}}
+\social[linkedin]{{{personalInfo.linkedin}}}
+{{/if}}
+{{#if personalInfo.github}}
+\social[github]{{{personalInfo.github}}}
+{{/if}}
+
+\begin{document}
+
+\makecvtitle
+
+% Professional Summary
+{{#if summary}}
+\section{Professional Summary}
+\cvitem{}{{{summary}}}
+{{/if}}
+
+% Experience
+{{#if experience}}
+\section{Professional Experience}
+{{#each experience}}
+\cventry{{{startDate}}{{#unless current}}--{{endDate}}{{/unless}}{{#if current}}--Present{{/if}}}{{{position}}}{{{company}}}{{{location}}}{}
+{
+{{#each description}}
+\begin{itemize}
+\item {{this}}
+\end{itemize}
+{{/each}}
+}
+{{/each}}
+{{/if}}
+
+% Education
+{{#if education}}
+\section{Education}
+{{#each education}}
+\cventry{{{startDate}}--{{endDate}}}{{{degree}} in {{field}}}{{{institution}}}{{{location}}}{{#if gpa}}{GPA: {{gpa}}}{{/if}}{}
+{{#if honors}}
+{
+\begin{itemize}
+{{#each honors}}
+\item {{this}}
+{{/each}}
+\end{itemize}
+}
+{{/if}}
+{{/each}}
+{{/if}}
+
+% Skills
+{{#if skills}}
+\section{Technical Skills}
+{{#each skills}}
+\cvitem{{{category}}}{{{items}}}
+{{/each}}
+{{/if}}
+
+% Projects
+{{#if projects}}
+\section{Notable Projects}
+{{#each projects}}
+\cventry{{{startDate}}{{#if endDate}}--{{endDate}}{{/if}}}{{{name}}}{}{}{}
+{
+{{description}}
+\\
+\textbf{Technologies:} {{technologies}}
+{{#if url}}
+\\
+\textbf{URL:} \href{{{url}}}{{{url}}}
+{{/if}}
+{{#if github}}
+\\
+\textbf{GitHub:} \href{{{github}}}{{{github}}}
+{{/if}}
+}
+{{/each}}
+{{/if}}
+
+% Certifications
+{{#if certifications}}
+\section{Certifications}
+{{#each certifications}}
+\cventry{{{date}}}{{{name}}}{{{issuer}}}{}{}{}
+{{/each}}
+{{/if}}
+
+\end{document}

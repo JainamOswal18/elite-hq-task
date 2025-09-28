@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  resume-pilot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - GOOGLE_AI_API_KEY=${GOOGLE_AI_API_KEY}
+      - PDFLATEX_API_URL=http://latex-compiler:3001
+    volumes:
+      - latex_cache:/app/.texlive
+      - temp_files:/tmp
+    depends_on:
+      - latex-compiler
+    restart: unless-stopped
+
+  latex-compiler:
+    build:
+      context: .
+      dockerfile: Dockerfile.latex
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+    volumes:
+      - latex_cache:/app/.texlive
+      - temp_files:/tmp
+    restart: unless-stopped
+
+  # Optional: Redis for caching compiled PDFs
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+volumes:
+  latex_cache:
+  temp_files:
+  redis_data:
