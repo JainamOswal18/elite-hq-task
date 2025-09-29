@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
-import { X, Mail, Lock, User, Chrome } from 'lucide-react'
+import { X, Mail, Lock, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface AuthModalProps {
@@ -20,7 +20,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const { signIn, signUp, signInWithGoogle, loading } = useAuth()
+  const { signIn, signUp, loading } = useAuth()
 
   if (!isOpen) return null
 
@@ -53,13 +53,6 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
     }
   }
 
-  const handleGoogleSignIn = async () => {
-    setError(null)
-    const result = await signInWithGoogle()
-    if (!result.success) {
-      setError(result.error || 'Google sign-in failed')
-    }
-  }
 
   const resetForm = () => {
     setEmail('')
@@ -98,26 +91,6 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
             }
           </p>
 
-          {/* Google Sign In */}
-          <Button
-            onClick={handleGoogleSignIn}
-            variant="outline"
-            className="w-full mb-4 flex items-center justify-center gap-2"
-            disabled={loading}
-          >
-            <Chrome className="h-5 w-5" />
-            Continue with Google
-          </Button>
-
-          {/* Divider */}
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-neutral-300" />
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-neutral-500">Or continue with email</span>
-            </div>
-          </div>
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">

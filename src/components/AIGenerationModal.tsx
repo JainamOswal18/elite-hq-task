@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import { X, Send, Loader2, Bot, User } from 'lucide-react'
+import { X, Send, Bot, User } from 'lucide-react'
 import { TemplateType, ResumeData } from '@/types'
 import { cn } from '@/lib/utils'
 
@@ -22,12 +22,76 @@ interface ChatMessage {
   timestamp: Date
 }
 
+
+interface UserInputAnalysis {
+  name: boolean
+  email: boolean
+  phone: boolean
+  education: boolean
+  skills: boolean
+  projects: boolean
+  achievements: boolean
+  experience: boolean
+  student: boolean
+}
+
+interface EducationEntry {
+  period?: string
+  degree?: string
+  institution?: string
+  location?: string
+  gpa?: string
+  details?: string
+}
+
+interface ExperienceEntry {
+  period?: string
+  position?: string
+  company?: string
+  location?: string
+  achievements: string[]
+}
+
+interface ProjectEntry {
+  period?: string
+  name?: string
+  tech?: string
+  achievements: string[]
+}
+
+interface SkillCategory {
+  category: string
+  items: string[]
+}
+
+interface AchievementEntry {
+  year?: string
+  description: string
+}
+
+interface ParsedResumeInfo {
+  firstName?: string | null
+  lastName?: string | null
+  title?: string | null
+  email?: string | null
+  phone?: string | null
+  address?: string | null
+  city?: string | null
+  country?: string | null
+  linkedin?: string | null
+  github?: string | null
+  summary?: string | null
+  education?: EducationEntry[]
+  experience?: ExperienceEntry[]
+  projects?: ProjectEntry[]
+  skills?: SkillCategory[]
+  achievements?: AchievementEntry[]
+}
+
 export function AIGenerationModal({
   isOpen,
   onClose,
   onGenerate,
-  currentResumeData,
-  currentTemplate,
   currentLatexContent
 }: AIGenerationModalProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -46,6 +110,26 @@ export function AIGenerationModal({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden'
+      document.body.style.position = 'fixed'
+      document.body.style.width = '100%'
+    } else {
+      document.body.style.overflow = ''
+      document.body.style.position = ''
+      document.body.style.width = ''
+    }
+
+    // Cleanup on unmount
+    return () => {
+      document.body.style.overflow = ''
+      document.body.style.position = ''
+      document.body.style.width = ''
+    }
+  }, [isOpen])
 
   if (!isOpen) return null
 
@@ -76,7 +160,7 @@ export function AIGenerationModal({
       const aiResponse: ChatMessage = {
         id: (Date.now() + 1).toString(),
         type: 'ai',
-        content: generateIntelligentResponse(userMessage, currentLatexContent, messages),
+        content: generateIntelligentResponse(userMessage, currentLatexContent),
         timestamp: new Date()
       }
 
@@ -112,7 +196,7 @@ export function AIGenerationModal({
   }
 
   // Generate intelligent, contextual AI responses
-  const generateIntelligentResponse = (userMessage: string, currentContent: string | undefined, chatHistory: ChatMessage[]): string => {
+  const generateIntelligentResponse = (userMessage: string, currentContent: string | undefined): string => {
     const lowerMessage = userMessage.toLowerCase()
     
     // Handle greetings and casual messages
@@ -143,7 +227,7 @@ export function AIGenerationModal({
   }
 
   // Analyze what information the user provided
-  const analyzeUserInput = (text: string) => {
+  const analyzeUserInput = (text: string): UserInputAnalysis => {
     const lowerText = text.toLowerCase()
     const info = {
       name: !!extractName(text),
@@ -160,7 +244,7 @@ export function AIGenerationModal({
   }
 
   // Generate response for new content
-  const generateNewContentResponse = (userMessage: string, providedInfo: any): string => {
+  const generateNewContentResponse = (userMessage: string, providedInfo: UserInputAnalysis): string => {
     const addedSections = []
     if (providedInfo.name) addedSections.push('your name')
     if (providedInfo.education) addedSections.push('education details')
@@ -194,7 +278,7 @@ export function AIGenerationModal({
   }
 
   // Generate response for content updates
-  const generateUpdateResponse = (userMessage: string, providedInfo: any): string => {
+  const generateUpdateResponse = (userMessage: string, providedInfo: UserInputAnalysis): string => {
     const updatedSections = []
     if (providedInfo.skills) updatedSections.push('skills')
     if (providedInfo.projects) updatedSections.push('projects')
@@ -216,7 +300,7 @@ export function AIGenerationModal({
     
     // If we have existing content, try to update it intelligently
     if (currentContent && currentContent.trim()) {
-      return updateExistingLatexContent(currentContent, info, text)
+      return updateExistingLatexContent(currentContent, info)
     }
     
     // Generate new LaTeX document with only user-provided information
@@ -224,10 +308,10 @@ export function AIGenerationModal({
   }
 
   // Generate new LaTeX document with only mentioned information
-  const generateNewLatexDocument = (info: any): string => {
+  const generateNewLatexDocument = (info: ParsedResumeInfo): string => {
     // If user provided nothing meaningful, return minimal template
-    const hasAnyContent = info.firstName || info.education?.length > 0 || info.skills?.length > 0 || 
-                         info.projects?.length > 0 || info.achievements?.length > 0 || 
+    const hasAnyContent = info.firstName || (info.education && info.education.length > 0) || (info.skills && info.skills.length > 0) || 
+                         (info.projects && info.projects.length > 0) || (info.achievements && info.achievements.length > 0) || 
                          info.email || info.phone || info.summary
     
     if (!hasAnyContent) {
@@ -296,7 +380,7 @@ ${info.summary}
     
     if (info.education && info.education.length > 0) {
       latex += `\\section{Education}
-${info.education.map((edu: any) => 
+${info.education.map((edu: EducationEntry) => 
         `\\cventry{${edu.period || ''}}{${edu.degree || ''}}{${edu.institution || ''}}{${edu.location || ''}}{${edu.gpa || ''}}{${edu.details || ''}}`
       ).join('\n')}
 
@@ -305,7 +389,7 @@ ${info.education.map((edu: any) =>
     
     if (info.experience && info.experience.length > 0) {
       latex += `\\section{Experience}
-${info.experience.map((exp: any) => 
+${info.experience.map((exp: ExperienceEntry) => 
         `\\cventry{${exp.period || ''}}{${exp.position || ''}}{${exp.company || ''}}{${exp.location || ''}}{}{
 \\begin{itemize}
 ${exp.achievements.map((achievement: string) => `\\item ${achievement}`).join('\n')}
@@ -317,7 +401,7 @@ ${exp.achievements.map((achievement: string) => `\\item ${achievement}`).join('\
     
     if (info.projects && info.projects.length > 0) {
       latex += `\\section{Projects}
-${info.projects.map((project: any) => 
+${info.projects.map((project: ProjectEntry) => 
         `\\cventry{${project.period || ''}}{${project.name || ''}}{${project.tech || ''}}{}{}{
 \\begin{itemize}
 ${project.achievements.map((achievement: string) => `\\item ${achievement}`).join('\n')}
@@ -329,7 +413,7 @@ ${project.achievements.map((achievement: string) => `\\item ${achievement}`).joi
     
     if (info.skills && info.skills.length > 0) {
       latex += `\\section{Technical Skills}
-${info.skills.map((skillCategory: any) => 
+${info.skills.map((skillCategory: SkillCategory) => 
         `\\cvitem{${skillCategory.category}}{${skillCategory.items.join(', ')}}`
       ).join('\n')}
 
@@ -338,7 +422,7 @@ ${info.skills.map((skillCategory: any) =>
     
     if (info.achievements && info.achievements.length > 0) {
       latex += `\\section{Achievements \\& Hackathons}
-${info.achievements.map((achievement: any) => `\\cvitem{${achievement.year}}{${achievement.description}}`).join('\n')}
+${info.achievements.map((achievement: AchievementEntry) => `\\cvitem{${achievement.year}}{${achievement.description}}`).join('\n')}
 
 `
     }
@@ -348,12 +432,12 @@ ${info.achievements.map((achievement: any) => `\\cvitem{${achievement.year}}{${a
   }
 
   // Update existing LaTeX content based on user input
-  const updateExistingLatexContent = (currentContent: string, info: any, userInput: string): string => {
+  const updateExistingLatexContent = (currentContent: string, info: ParsedResumeInfo): string => {
     let updatedContent = currentContent
     
     // If user mentions new skills, add them
     if (info.skills && info.skills.length > 0) {
-      const skillsSection = info.skills.map((skillCategory: any) => 
+      const skillsSection = info.skills.map((skillCategory: SkillCategory) => 
         `\\cvitem{${skillCategory.category}}{${skillCategory.items.join(', ')}}`
       ).join('\n')
       
@@ -374,7 +458,7 @@ ${info.achievements.map((achievement: any) => `\\cvitem{${achievement.year}}{${a
     
     // If user mentions new projects, add them
     if (info.projects && info.projects.length > 0) {
-      const projectsSection = info.projects.map((project: any) => 
+      const projectsSection = info.projects.map((project: ProjectEntry) => 
         `\\cventry{${project.period}}{${project.name}}{${project.tech}}{}{}{
 \\begin{itemize}
 ${project.achievements.map((achievement: string) => `\\item ${achievement}`).join('\n')}
@@ -426,12 +510,11 @@ ${project.achievements.map((achievement: string) => `\\item ${achievement}`).joi
     
     const combinedText = `${allUserMessages} ${text}`
     
-    return parseUserInput(combinedText, currentContent)
+    return parseUserInput(combinedText)
   }
 
   // Function to intelligently parse user input (enhanced to avoid placeholder values)
-  const parseUserInput = (text: string, currentContent?: string) => {
-    const lowerText = text.toLowerCase()
+  const parseUserInput = (text: string) => {
     
     // Extract basic info
     const name = extractName(text) || { firstName: 'Your', lastName: 'Name' }
@@ -636,7 +719,7 @@ ${project.achievements.map((achievement: string) => `\\item ${achievement}`).joi
     return achievements
   }
 
-  const generateSummary = (text: string, education: any[], skills: any[], achievements: any[]) => {
+  const generateSummary = (text: string, education: EducationEntry[], skills: SkillCategory[], achievements: AchievementEntry[]) => {
     // Only generate summary if user provides substantial information
     const lowerText = text.toLowerCase()
     
@@ -664,7 +747,7 @@ ${project.achievements.map((achievement: string) => `\\item ${achievement}`).joi
     if (isStudent && hasEducation) {
       summary = `Motivated ${education[0]?.degree || 'student'} with `
       if (hasSkills) {
-        const mainSkills = skills.flatMap((cat: any) => cat.items).slice(0, 3).join(', ')
+        const mainSkills = skills.flatMap((cat: SkillCategory) => cat.items).slice(0, 3).join(', ')
         summary += `experience in ${mainSkills}. `
       } else {
         summary += `strong academic background. `
@@ -672,13 +755,13 @@ ${project.achievements.map((achievement: string) => `\\item ${achievement}`).joi
     } else if (hasExperience) {
       summary = 'Software professional with '
       if (hasSkills) {
-        const mainSkills = skills.flatMap((cat: any) => cat.items).slice(0, 3).join(', ')
+        const mainSkills = skills.flatMap((cat: SkillCategory) => cat.items).slice(0, 3).join(', ')
         summary += `expertise in ${mainSkills}. `
       } else {
         summary += 'proven technical experience. '
       }
     } else if (hasSkills) {
-      const mainSkills = skills.flatMap((cat: any) => cat.items).slice(0, 3).join(', ')
+      const mainSkills = skills.flatMap((cat: SkillCategory) => cat.items).slice(0, 3).join(', ')
       summary = `Technical professional proficient in ${mainSkills}. `
     } else {
       return null // Not enough info for meaningful summary
@@ -790,8 +873,8 @@ ${project.achievements.map((achievement: string) => `\\item ${achievement}`).joi
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col border border-neutral-200/50">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
+      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col border border-neutral-200/50" style={{ position: 'relative' }}>
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-neutral-100 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-2xl">
           <div className="flex items-center gap-4">
@@ -815,7 +898,7 @@ ${project.achievements.map((achievement: string) => `\\item ${achievement}`).joi
         </div>
 
         {/* Chat Messages */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gradient-to-b from-neutral-50/30 to-white">
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gradient-to-b from-neutral-50/30 to-white" style={{ maxHeight: 'calc(90vh - 200px)' }}>
           {messages.map((message) => (
             <div
               key={message.id}
@@ -882,8 +965,8 @@ ${project.achievements.map((achievement: string) => `\\item ${achievement}`).joi
         </div>
 
         {/* Input Area */}
-        <div className="border-t border-neutral-100 bg-white rounded-b-2xl">
-          <div className="p-6">
+        <div className="border-t border-neutral-100 bg-white rounded-b-2xl" style={{ backgroundColor: '#ffffff' }}>
+          <div className="p-6 bg-white" style={{ backgroundColor: '#ffffff' }}>
             <div className="flex gap-4 items-end">
               <div className="flex-1">
                 <textarea
@@ -892,7 +975,8 @@ ${project.achievements.map((achievement: string) => `\\item ${achievement}`).joi
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={handleKeyPress}
                   placeholder="Tell me about your experience, skills, or what you'd like on your resume..."
-                  className="w-full resize-none border border-neutral-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder:text-neutral-400 text-sm"
+                  className="w-full resize-none border border-neutral-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder:text-neutral-400 text-sm bg-white"
+                  style={{ backgroundColor: '#ffffff !important' }}
                   rows={3}
                   disabled={isGenerating}
                 />

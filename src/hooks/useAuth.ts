@@ -175,29 +175,6 @@ export function useAuth() {
     }
   }
 
-  const signInWithGoogle = async () => {
-    setState(prev => ({ ...prev, loading: true, error: null }))
-    
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`
-        }
-      })
-
-      if (error) {
-        setState(prev => ({ ...prev, error: error.message, loading: false }))
-        return { success: false, error: error.message }
-      }
-
-      return { success: true }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      setState(prev => ({ ...prev, error: errorMessage, loading: false }))
-      return { success: false, error: errorMessage }
-    }
-  }
 
   const signOut = async () => {
     setState(prev => ({ ...prev, loading: true, error: null }))
@@ -250,7 +227,6 @@ export function useAuth() {
     ...state,
     signIn,
     signUp,
-    signInWithGoogle,
     signOut,
     updateProfile
   }

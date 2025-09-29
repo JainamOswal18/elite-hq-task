@@ -42,6 +42,8 @@ interface PDFViewerProps {
   onStateChange?: (state: PDFViewerState) => void
   showControls?: boolean
   initialScale?: number
+  externalScale?: number
+  externalPageNumber?: number
 }
 
 function PDFViewerClient({
@@ -49,7 +51,9 @@ function PDFViewerClient({
   className,
   onStateChange,
   showControls = true,
-  initialScale = 1.0
+  initialScale = 1.0,
+  externalScale,
+  externalPageNumber
 }: PDFViewerProps) {
   const [state, setState] = useState<PDFViewerState>({
     scale: initialScale,
@@ -59,6 +63,9 @@ function PDFViewerClient({
     error: null
   })
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [controlsVisible, setControlsVisible] = useState(true)
+  const [lastScrollY, setLastScrollY] = useState(0)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   // Update parent component when state changes - use individual state properties to avoid loops
   const onStateChangeRef = useRef(onStateChange)
@@ -66,6 +73,20 @@ function PDFViewerClient({
   useEffect(() => {
     onStateChangeRef.current = onStateChange
   }, [onStateChange])
+
+  // Respond to external scale changes
+  useEffect(() => {
+    if (externalScale !== undefined && externalScale !== state.scale) {
+      setState(prev => ({ ...prev, scale: externalScale }))
+    }
+  }, [externalScale, state.scale])
+
+  // Respond to external page changes
+  useEffect(() => {
+    if (externalPageNumber !== undefined && externalPageNumber !== state.pageNumber) {
+      setState(prev => ({ ...prev, pageNumber: externalPageNumber }))
+    }
+  }, [externalPageNumber, state.pageNumber])
 
   useEffect(() => {
     // Call onStateChange when any state property changes
@@ -112,7 +133,7 @@ function PDFViewerClient({
     
     // Convert ArrayBuffer/Uint8Array to Blob to prevent detachment issues
     if (pdfData instanceof ArrayBuffer || pdfData instanceof Uint8Array) {
-      const blob = new Blob([pdfData], { type: 'application/pdf' })
+      const blob = new Blob([pdfData as BlobPart], { type: 'application/pdf' })
       return blob
     }
     
@@ -147,7 +168,7 @@ function PDFViewerClient({
   const handleDownload = useCallback(() => {
     if (!pdfData) return
 
-    const blob = new Blob([pdfData], { type: 'application/pdf' })
+    const blob = new Blob([pdfData as BlobPart], { type: 'application/pdf' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -159,8 +180,66 @@ function PDFViewerClient({
   }, [pdfData])
 
   const toggleFullscreen = useCallback(() => {
-    setIsFullscreen(prev => !prev)
+    setIsFullscreen(prev => {
+      const newFullscreen = !prev
+      
+      // Lock/unlock body scroll
+      if (newFullscreen) {
+        document.body.style.overflow = 'hidden'
+      } else {
+        document.body.style.overflow = ''
+      }
+      
+      return newFullscreen
+    })
   }, [])
+
+  // Cleanup body scroll on unmount
+  useEffect(() => {
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [])
+
+  // Handle scroll to show/hide controls
+  const handleScroll = useCallback(() => {
+    if (!scrollContainerRef.current) return
+    
+    const currentScrollY = scrollContainerRef.current.scrollTop
+    
+    if (currentScrollY > lastScrollY && currentScrollY > 100) {
+      // Scrolling down - hide controls
+      setControlsVisible(false)
+    } else if (currentScrollY < lastScrollY) {
+      // Scrolling up - show controls
+      setControlsVisible(true)
+    }
+    
+    setLastScrollY(currentScrollY)
+  }, [lastScrollY])
+
+  // Add scroll listener
+  useEffect(() => {
+    const scrollContainer = scrollContainerRef.current
+    if (scrollContainer) {
+      scrollContainer.addEventListener('scroll', handleScroll, { passive: true })
+      return () => scrollContainer.removeEventListener('scroll', handleScroll)
+    }
+  }, [handleScroll])
+
+  // Handle ESC key to exit fullscreen
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        toggleFullscreen()
+      }
+    }
+
+    if (isFullscreen) {
+      document.addEventListener('keydown', handleKeyDown)
+      return () => document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isFullscreen, toggleFullscreen])
 
   // Render loading state
   if (state.isLoading) {
@@ -207,82 +286,101 @@ function PDFViewerClient({
 
   return (
     <div className={cn(
-      'flex flex-col h-full bg-neutral-50',
-      isFullscreen && 'fixed inset-0 z-50 bg-white',
+      'flex flex-col h-full bg-neutral-50 relative',
+      isFullscreen && 'fixed inset-0 z-50 bg-white shadow-2xl',
       className
     )}>
       {/* Controls */}
       {showControls && (
-        <div className="flex items-center justify-between p-3 border-b bg-white">
-          <div className="flex items-center space-x-2">
+        <div className={cn(
+          "flex items-center justify-between p-4 border-b bg-white/95 backdrop-blur-sm transition-all duration-500 ease-in-out z-20 shadow-lg",
+          isFullscreen && "absolute top-0 left-0 right-0",
+          !controlsVisible && "-translate-y-full opacity-0",
+          controlsVisible && "translate-y-0 opacity-100"
+        )}>
+          <div className="flex items-center space-x-1">
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
               onClick={handleZoomOut}
               disabled={state.scale <= 0.5}
+              className="h-9 px-3 hover:bg-neutral-100 disabled:opacity-50 transition-all duration-200"
             >
               <ZoomOut className="h-4 w-4" />
             </Button>
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
               onClick={handleResetZoom}
+              className="h-9 px-4 hover:bg-neutral-100 font-mono text-xs min-w-[60px] transition-all duration-200"
             >
               {Math.round(state.scale * 100)}%
             </Button>
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
               onClick={handleZoomIn}
               disabled={state.scale >= 3.0}
+              className="h-9 px-3 hover:bg-neutral-100 disabled:opacity-50 transition-all duration-200"
             >
               <ZoomIn className="h-4 w-4" />
             </Button>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-1">
             {state.totalPages > 1 && (
               <>
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
                   onClick={handlePrevPage}
                   disabled={state.pageNumber <= 1}
+                  className="h-9 px-3 hover:bg-neutral-100 disabled:opacity-50 transition-all duration-200"
                 >
-                  Previous
+                  <span className="text-xs font-medium">Prev</span>
                 </Button>
-                <span className="text-sm text-neutral-600">
-                  {state.pageNumber} of {state.totalPages}
-                </span>
+                <div className="px-3 py-1 bg-neutral-100 rounded-md">
+                  <span className="text-xs font-mono text-neutral-700">
+                    {state.pageNumber} / {state.totalPages}
+                  </span>
+                </div>
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
                   onClick={handleNextPage}
                   disabled={state.pageNumber >= state.totalPages}
+                  className="h-9 px-3 hover:bg-neutral-100 disabled:opacity-50 transition-all duration-200"
                 >
-                  Next
+                  <span className="text-xs font-medium">Next</span>
                 </Button>
               </>
             )}
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-1">
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
               onClick={handleDownload}
+              className="h-9 px-3 hover:bg-neutral-100 transition-all duration-200 group"
             >
-              <Download className="h-4 w-4" />
+              <Download className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
             </Button>
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
               onClick={toggleFullscreen}
+              className={cn(
+                "h-9 px-3 transition-all duration-200 group",
+                isFullscreen 
+                  ? "bg-blue-100 text-blue-600 hover:bg-blue-200" 
+                  : "hover:bg-neutral-100"
+              )}
             >
               {isFullscreen ? (
-                <Minimize2 className="h-4 w-4" />
+                <Minimize2 className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
               ) : (
-                <Maximize2 className="h-4 w-4" />
+                <Maximize2 className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
               )}
             </Button>
           </div>
@@ -290,28 +388,42 @@ function PDFViewerClient({
       )}
 
       {/* PDF Document */}
-      <div className="flex-1 overflow-auto p-4">
-        <div className="flex justify-center">
+      <div 
+        ref={scrollContainerRef}
+        className={cn(
+          "flex-1 overflow-auto p-6 bg-gradient-to-br from-neutral-50 to-neutral-100",
+          isFullscreen && "pt-24 bg-neutral-900" // Add top padding when fullscreen to account for controls
+        )}
+      >
+        <div className="flex justify-center min-h-full">
+          <div className={cn(
+            "transition-all duration-300 ease-in-out",
+            isFullscreen && "scale-105"
+          )}>
           {fileObject && (
             <Document
               file={fileObject}
               onLoadSuccess={onDocumentLoadSuccess}
               onLoadError={onDocumentLoadError}
               onLoadStart={onLoadStart}
-              className="shadow-lg"
+              className="shadow-2xl rounded-lg overflow-hidden"
               loading={
                 <div className="flex items-center justify-center h-96">
-                  <div className="animate-pulse bg-neutral-200 rounded h-full w-full max-w-[595px]"></div>
+                  <div className="animate-pulse bg-gradient-to-br from-neutral-200 to-neutral-300 rounded-lg shadow-lg h-full w-full max-w-[595px] relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer"></div>
+                  </div>
                 </div>
               }
             >
             <Page
               pageNumber={state.pageNumber}
               scale={state.scale}
-              className="react-pdf__Page"
+              className="react-pdf__Page shadow-lg rounded-lg overflow-hidden"
               loading={
                 <div className="flex items-center justify-center h-96">
-                  <div className="animate-pulse bg-neutral-200 rounded h-full w-full max-w-[595px]"></div>
+                  <div className="animate-pulse bg-gradient-to-br from-neutral-200 to-neutral-300 rounded-lg shadow-lg h-full w-full max-w-[595px] relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer"></div>
+                  </div>
                 </div>
               }
               renderTextLayer={false}
@@ -322,12 +434,18 @@ function PDFViewerClient({
           
           {!fileObject && (
             <div className="flex items-center justify-center h-96">
-              <div className="text-center text-neutral-500">
-                <div className="text-lg font-medium mb-2">No PDF to display</div>
-                <div className="text-sm">Compile your LaTeX code to see the PDF preview</div>
+              <div className="text-center text-neutral-500 p-8 bg-white rounded-xl shadow-lg border-2 border-dashed border-neutral-200">
+                <div className="w-16 h-16 mx-auto mb-4 bg-neutral-100 rounded-full flex items-center justify-center">
+                  <svg className="w-8 h-8 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <div className="text-lg font-semibold text-neutral-700 mb-2">No PDF to display</div>
+                <div className="text-sm text-neutral-500">Compile your LaTeX code to see the PDF preview</div>
               </div>
             </div>
           )}
+          </div>
         </div>
       </div>
 

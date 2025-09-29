@@ -18,9 +18,7 @@ function Header() {
           <div className="flex items-center space-x-4">
             <h1 className="text-2xl font-bold text-neutral-900">Resume Pilot</h1>
             <div className="hidden md:flex items-center space-x-2 text-sm text-neutral-600">
-              <span>Ctrl+S to save</span>
-              <span>•</span>
-              <span>Ctrl+E to export</span>
+              <span>Ctrl+K for shortcuts</span>
             </div>
           </div>
           
@@ -80,7 +78,7 @@ export default function Home() {
   }
 
   const handleExport = (pdfData: ArrayBuffer | Uint8Array) => {
-    const blob = new Blob([pdfData], { type: 'application/pdf' })
+    const blob = new Blob([pdfData as BlobPart], { type: 'application/pdf' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url

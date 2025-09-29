@@ -22,8 +22,8 @@ export async function POST(request: NextRequest) {
   try {
     const { message, chatHistory, currentLatexContent, resumeData }: ChatRequest = await request.json()
 
-    // Get Gemini 2.5 Flash model
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
+    // Get Gemini 2.5 Pro model
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' })
 
     // Build comprehensive context for the LLM
     const systemPrompt = `You are an expert LaTeX resume assistant. Your job is to:
@@ -45,9 +45,12 @@ USER GUIDELINES:
 - If user says "hey" or greetings, provide helpful guidance
 - If insufficient information, ask for specific details
 - Generate LaTeX using ARTICLE CLASS (not moderncv) for better compatibility
-- Use \\section{}, \\textbf{}, \\hfill for formatting
+- STRICTLY follow the exact format patterns shown below - NO VARIATIONS ALLOWED
 
-LATEX TEMPLATE STRUCTURE (ARTICLE CLASS):
+MANDATORY LATEX FORMAT - FOLLOW EXACTLY:
+You MUST use these EXACT patterns for consistent parsing:
+
+DOCUMENT STRUCTURE (REQUIRED):
 \\documentclass[11pt,a4paper]{article}
 \\usepackage[margin=0.75in]{geometry}
 \\usepackage{enumitem}
@@ -62,21 +65,65 @@ LATEX TEMPLATE STRUCTURE (ARTICLE CLASS):
 
 \\begin{document}
 
-% Header - ONLY if user provided name
-% \\begin{center}
-% {\\LARGE\\textbf{User Provided Name}}\\\\[4pt]
-% {\\large User Provided Title}\\\\[8pt]
-% Email: user@email.com $\\mid$ Phone: +1 (555) 123-4567
-% \\end{center}
+HEADER FORMAT (if user provided name and contact):
+\\begin{center}
+{\\LARGE\\textbf{Full Name}}\\\\[4pt]
+{\\large Job Title or Student Status}\\\\[8pt]
+Email: user@email.com $\\mid$ Phone: +1 (555) 123-4567
+\\end{center}
 
-% Sections only if user provided content:
-% \\section{Professional Summary}
-% \\section{Education}
-% \\section{Experience}
-% \\section{Technical Skills}
-% \\section{Projects}
+EDUCATION FORMAT (MUST use \\textbf{} \\hfill with \\\\ line breaks):
+\\section{Education}
+\\textbf{Degree Name} \\hfill Year Range\\\\
+Institution Name, City, State\\\\
+GPA: X.X (if provided)
+\\begin{itemize}[leftmargin=20pt, topsep=0pt]
+\\item Relevant coursework and achievements (if any details provided)
+\\end{itemize}
+
+SKILLS FORMAT (MUST use \\textbf{Category:} with \\\\ line breaks):
+\\section{Technical Skills}
+\\textbf{Programming:} React, Node.js, Express.js\\\\
+\\textbf{Databases:} PostgreSQL, Supabase\\\\
+\\textbf{Tools:} Git, Docker, AWS (if mentioned)
+
+EXPERIENCE FORMAT (MUST use \\textbf{Title} \\hfill Dates\\\\):
+\\section{Experience}
+\\textbf{Job Title} \\hfill Date Range\\\\
+Company Name, City, State
+\\begin{itemize}[leftmargin=20pt, topsep=0pt]
+\\item Achievement or responsibility description
+\\item Another achievement with specific details
+\\end{itemize}
+
+PROJECTS FORMAT (MUST use \\begin{itemize}[leftmargin=20pt, topsep=0pt]):
+\\section{Projects}
+\\textbf{Project Name} \\hfill Date or Tech Stack\\\\
+Brief project description
+\\begin{itemize}[leftmargin=20pt, topsep=0pt]
+\\item Specific achievement or technology used
+\\item Impact or result achieved
+\\end{itemize}
+
+ACHIEVEMENTS FORMAT (same pattern as projects):
+\\section{Achievements}
+\\textbf{Achievement Title} \\hfill Date\\\\
+Organization or Event Name
+\\begin{itemize}[leftmargin=20pt, topsep=0pt]
+\\item Specific details about the achievement
+\\item Impact or recognition received
+\\end{itemize}
 
 \\end{document}
+
+CRITICAL FORMAT REQUIREMENTS:
+1. ALWAYS use \\textbf{Title} \\hfill Dates\\\\ format with proper line breaks
+2. ALWAYS use \\textbf{Category:} with \\\\ line breaks for skills
+3. ALWAYS use \\begin{itemize}[leftmargin=20pt, topsep=0pt] for all lists
+4. ALWAYS include proper spacing with \\\\[4pt], \\\\[8pt] in headers
+5. ALWAYS use $\\mid$ for separating contact information
+6. NEVER use moderncv commands like \\cventry, \\cvitem, \\name{}, \\title{}
+7. NEVER use different formatting patterns - match the sample format exactly
 
 RESPONSE FORMAT:
 You MUST respond with ONLY a valid JSON object in this exact format:
@@ -101,6 +148,13 @@ CRITICAL REQUIREMENTS:
 - ONLY generate LaTeX sections for information the user actually provided
 - Use ARTICLE CLASS format, not moderncv
 - If user hasn't provided name/contact, leave header section empty or commented out
+
+ABSOLUTE FORMAT ENFORCEMENT:
+- You MUST NEVER deviate from the exact LaTeX patterns shown above
+- Use ONLY the specified \\textbf{}, \\hfill, and \\begin{itemize}[leftmargin=*] patterns
+- Any variation in format will cause parsing failures
+- Always use the exact same document structure, package imports, and formatting commands
+- Double-check your LaTeX output matches the mandatory patterns exactly before responding
 
 Current user message: "${message}"`
 
