@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react'
 import { Editor } from '@monaco-editor/react'
 import { Button } from '@/components/ui/button'
-import { Download, Code, Eye, Bot, Send, User, Loader2, Play, Settings } from 'lucide-react'
+import { Download, Code, Eye, Bot, Send, User, Loader2, Play } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PDFViewer } from './PDFViewer'
 
@@ -96,7 +96,6 @@ Tech Company, City, State
   const [viewMode, setViewMode] = useState<ViewMode>('preview')
   const [pdfData, setPdfData] = useState<ArrayBuffer | Uint8Array | null>(null)
   const [isCompiling, setIsCompiling] = useState(false)
-  const [selectedTemplate, setSelectedTemplate] = useState('modern')
   
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -128,13 +127,13 @@ Tech Company, City, State
         
         setIsCompiling(true)
         try {
-          console.log('Starting compilation with template:', selectedTemplate)
+          console.log('Starting compilation with template: modern')
           const response = await fetch('/api/compile', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               content: content,
-              template: selectedTemplate
+              template: 'modern'
             })
           })
 
@@ -159,7 +158,7 @@ Tech Company, City, State
 
       debouncedCompileRef.current = createDebounce(compileFunction, 1500)
     }
-  }, [createDebounce, selectedTemplate])
+  }, [createDebounce])
 
   // Compile LaTeX when content changes
   useEffect(() => {
@@ -269,7 +268,7 @@ Tech Company, City, State
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           content: latexContent,
-          template: selectedTemplate
+          template: 'modern'
         })
       })
 
@@ -285,15 +284,6 @@ Tech Company, City, State
     } finally {
       setIsCompiling(false)
     }
-  }, [latexContent, selectedTemplate])
-
-  // Handle template change
-  const handleTemplateChange = useCallback((template: string) => {
-    setSelectedTemplate(template)
-    // Trigger recompilation with new template
-    if (latexContent && latexContent.trim()) {
-      debouncedCompileRef.current?.(latexContent)
-    }
   }, [latexContent])
 
   // Handle export
@@ -304,9 +294,9 @@ Tech Company, City, State
   }, [pdfData, onExport])
 
   return (
-    <div className="flex h-full bg-neutral-50">
+    <div className="flex h-full bg-white">
       {/* Left Panel - AI Chat */}
-      <div className="w-96 bg-white border-r border-neutral-200 flex flex-col">
+      <div className="w-96 bg-white border-r border-neutral-200 flex flex-col h-full">
         {/* Chat Header */}
         <div className="p-4 border-b border-neutral-100 bg-gradient-to-r from-blue-50 to-indigo-50">
           <div className="flex items-center gap-3">
@@ -321,7 +311,7 @@ Tech Company, City, State
         </div>
 
         {/* Chat Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-white">
           {messages.map((message) => (
             <div
               key={message.id}
@@ -475,21 +465,6 @@ Tech Company, City, State
               </Button>
             </div>
           </div>
-          
-          {/* Template Selector */}
-          <div className="flex items-center gap-2">
-            <Settings className="h-4 w-4 text-neutral-500" />
-            <span className="text-sm text-neutral-600">Template:</span>
-            <select
-              value={selectedTemplate}
-              onChange={(e) => handleTemplateChange(e.target.value)}
-              className="text-sm border border-neutral-200 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="modern">Modern</option>
-              <option value="classic">Classic</option>
-              <option value="elegant">Elegant</option>
-            </select>
-          </div>
         </div>
 
         {/* Content Area */}
@@ -513,7 +488,7 @@ Tech Company, City, State
               }}
             />
           ) : (
-            <div className="h-full bg-neutral-100">
+            <div className="h-full bg-neutral-50">
               {pdfData ? (
                 <PDFViewer pdfData={pdfData} />
               ) : (
