@@ -83,21 +83,25 @@ async function simulateLatexCompilation(
 // Generate PDF using real LaTeX compilation
 async function generateSamplePDF(latexContent: string): Promise<Uint8Array> {
   try {
-    // Try real LaTeX compilation first
-    console.log('Attempting real LaTeX compilation...')
+    // FORCE real LaTeX compilation first - this should work!
+    console.log('🚀 FORCING real LaTeX compilation...')
+    console.log('LaTeX content preview:', latexContent.substring(0, 300))
+    
     const realPDF = await compileLatexToPDF(latexContent)
-    if (realPDF) {
-      console.log('Real LaTeX compilation successful')
+    if (realPDF && realPDF.length > 1000) {
+      console.log('✅ SUCCESS: Real LaTeX compilation worked! PDF size:', realPDF.length)
       return realPDF
+    } else {
+      console.log('❌ Real LaTeX failed - PDF too small or null:', realPDF?.length)
     }
   } catch (error) {
-    console.log('Real LaTeX compilation failed, falling back to parsing:', error)
+    console.log('❌ Real LaTeX compilation failed with error:', error)
   }
   
   // Fallback to parsing approach for preview
-  console.log('Using fallback parsing approach for preview...')
+  console.log('⚠️ Using fallback parsing approach for preview...')
   const sections = parseLatexContent(latexContent)
-  console.log('Parsed sections:', JSON.stringify(sections, null, 2))
+  console.log('📋 Parsed sections:', JSON.stringify(sections, null, 2))
   
   const pdfBuffer = await generatePDFWithPDFKit(sections)
   return new Uint8Array(pdfBuffer)
@@ -418,6 +422,7 @@ function parseLatexContent(latex: string) {
     education: [],
     skills: [],
     projects: [],
+    achievements: [],
     rawSections: []
   }
 
@@ -449,6 +454,9 @@ function parseLatexContent(latex: string) {
     else if (lowerTitle.includes('project')) {
       sections.projects = parseProjectsSection(section.content)
     }
+    else if (lowerTitle.includes('achievement') || lowerTitle.includes('award') || lowerTitle.includes('honor')) {
+      sections.achievements = parseProjectsSection(section.content) // Reuse same parser
+    }
   })
 
   return sections
@@ -460,6 +468,9 @@ function extractName(latex: string): string {
   const patterns = [
     /\\name\{([^}]+)\}/,
     /\\author\{([^}]+)\}/,
+    // Article class center format - THIS IS THE PATTERN WE NEED
+    /\{\\LARGE\\textbf\{([^}]+)\}\}/,
+    /\\LARGE\\textbf\{([^}]+)\}/,
     // Custom resume templates
     /\\centerline\{\\huge\s*\\bfseries\s*([^}]+)\}/,
     /\\centerline\{\\huge\s*\\scshape\s*([^}]+)\}/,
@@ -862,6 +873,20 @@ function parseProjectsSection(content: string): Array<any> {
     })
   }
   
+  // Try itemize format with \textbf{Project Name} - THIS IS WHAT WE NEED
+  if (projects.length === 0) {
+    const itemPattern = /\\item\s+\\textbf\{([^}]+)\}\s*([\s\S]*?)(?=\\item|\\end\{itemize\}|$)/g
+    while ((match = itemPattern.exec(content)) !== null) {
+      const projectName = match[1].trim()
+      const description = match[2].replace(/\\[a-zA-Z]+\{?/g, '').replace(/\}/g, '').trim()
+      
+      projects.push({
+        name: projectName,
+        description: description.substring(0, 200) // Limit description length
+      })
+    }
+  }
+  
   // Try other project patterns
   if (projects.length === 0) {
     const lines = content.split('\n')
@@ -1032,6 +1057,34 @@ async function generatePDFWithPDFKit(sections: any): Promise<Buffer> {
     })
   }
   
+  // Achievements
+  if (sections.achievements && sections.achievements.length > 0) {
+    if (yPos < 250) { // Check space
+      doc.setFontSize(12)
+      doc.setFont('helvetica', 'bold')
+      doc.text('ACHIEVEMENTS', 20, yPos)
+      yPos += 10
+      
+      sections.achievements.slice(0, 3).forEach((achievement: any) => {
+        doc.setFontSize(10)
+        doc.setFont('helvetica', 'bold')
+        doc.text(achievement.name || '', 20, yPos)
+        yPos += 8
+        
+        if (achievement.description) {
+          doc.setFontSize(9)
+          doc.setFont('helvetica', 'normal')
+          const descLines = doc.splitTextToSize(achievement.description, 170)
+          descLines.forEach((line: string) => {
+            doc.text(line, 20, yPos)
+            yPos += 6
+          })
+        }
+        yPos += 5
+      })
+    }
+  }
+  
   // Add any additional raw sections that weren't categorized
   if (sections.rawSections && sections.rawSections.length > 0) {
     sections.rawSections.forEach((section: any) => {
@@ -1040,7 +1093,8 @@ async function generatePDFWithPDFKit(sections: any): Promise<Buffer> {
       // Skip already processed sections
       if (lowerTitle.includes('summary') || lowerTitle.includes('experience') || 
           lowerTitle.includes('education') || lowerTitle.includes('skill') || 
-          lowerTitle.includes('project')) {
+          lowerTitle.includes('project') || lowerTitle.includes('achievement') || 
+          lowerTitle.includes('award') || lowerTitle.includes('honor')) {
         return
       }
       
